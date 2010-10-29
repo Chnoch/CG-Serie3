@@ -7,6 +7,6 @@
 	<classpathentry exported="true" kind="con" path="org.eclipse.jdt.USER_LIBRARY/Java3D"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.USER_LIBRARY/J3d"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.USER_LIBRARY/Jogl"/>
-	<classpathentry exported="true" kind="lib" path="/CG-Serie2-jrtr/bin"/>
+	<classpathentry kind="lib" path="/CG-jrtr/bin"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
