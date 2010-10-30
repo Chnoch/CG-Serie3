@@ -7,6 +7,9 @@ import jrtr.RenderContext;
 import java.awt.image.*;
 import java.util.LinkedList;
 
+import javax.vecmath.Matrix4f;
+import javax.vecmath.Vector4f;
+
 /**
  * A skeleton for a software renderer. It works in combination with
  * {@link SWRenderPanel}, which displays the output image. In project 3 you will
@@ -73,15 +76,30 @@ public class SWRenderContext implements RenderContext {
      * objects.
      */
     private void draw(RenderItem renderItem) {
-        BufferedImage image;
-        
         VertexData vertexData = renderItem.getShape().getVertexData();
         LinkedList<VertexData.VertexElement> vertexElements = vertexData.getElements();
         int indices[] = vertexData.getIndices();
-        image = new BufferedImage(0, 0, 1);
+        
         // Don't draw if there are no indices
         if(indices == null) return;
         
+        float x,y,z,w;
+        Vector4f vec;
+        Matrix4f mat, matVP, matCam;
+        matVP = renderItem.getT();
+        matCam = sceneManager.getCamera().getCameraMatrix();
+//        matVP = sceneManager.getFrustum().getProjectionMatrix();
+        mat = new Matrix4f();
+        mat.set(matCam);
+        mat.mul(matVP);
+        for (int i=0; i< indices.length/3;i++){
+            x = indices[i];
+            y = indices[i++];
+            z = indices[i++];
+            w = 1;
+            
+            vec = new Vector4f(x,y,z,w);
+        }
     }
 
     /**
