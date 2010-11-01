@@ -4,10 +4,14 @@ package jrtr;
 
 import jrtr.RenderContext;
 
+import java.awt.Color;
 import java.awt.image.*;
 import java.util.LinkedList;
+import java.util.ListIterator;
 
+import javax.media.opengl.GL;
 import javax.vecmath.Matrix4f;
+import javax.vecmath.Tuple4f;
 import javax.vecmath.Vector4f;
 
 /**
@@ -22,6 +26,8 @@ public class SWRenderContext implements RenderContext {
 
     private SceneManagerInterface sceneManager;
     private BufferedImage colorBuffer;
+    private Matrix4f matVP;
+    private int aWidth, aHeight;
 
     public void setSceneManager(SceneManagerInterface sceneManager) {
         this.sceneManager = sceneManager;
@@ -58,6 +64,17 @@ public class SWRenderContext implements RenderContext {
      * viewport matrix, which you need to reset here.
      */
     public void setViewportSize(int width, int height) {
+        this.aHeight = height;
+        this.aWidth = width;
+        // reset the viewport matrix
+        matVP = new Matrix4f();
+        matVP.setM00(width / 2);
+        matVP.setM03((width - 1) / 2);
+        matVP.setM11(height / 2);
+        matVP.setM13((height - 1) / 2);
+        matVP.setM22(1);
+        matVP.setM33(1);
+
         colorBuffer = new BufferedImage(width, height,
                 BufferedImage.TYPE_3BYTE_BGR);
     }
@@ -77,28 +94,51 @@ public class SWRenderContext implements RenderContext {
      */
     private void draw(RenderItem renderItem) {
         VertexData vertexData = renderItem.getShape().getVertexData();
-        LinkedList<VertexData.VertexElement> vertexElements = vertexData.getElements();
+        LinkedList<VertexData.VertexElement> vertexElements = vertexData
+                .getElements();
         int indices[] = vertexData.getIndices();
-        
+
         // Don't draw if there are no indices
-        if(indices == null) return;
-        
-        float x,y,z,w;
+        if (indices == null)
+            return;
+
+        float x, y, z, w;
         Vector4f vec;
-        Matrix4f mat, matVP, matCam;
-        matVP = renderItem.getT();
+        Matrix4f mat, matPro, matCam;
         matCam = sceneManager.getCamera().getCameraMatrix();
-//        matVP = sceneManager.getFrustum().getProjectionMatrix();
+        matPro = sceneManager.getFrustum().getProjectionMatrix();
         mat = new Matrix4f();
-        mat.set(matCam);
-        mat.mul(matVP);
-        for (int i=0; i< indices.length/3;i++){
-            x = indices[i];
-            y = indices[i++];
-            z = indices[i++];
-            w = 1;
-            
-            vec = new Vector4f(x,y,z,w);
+        mat.set(matVP);
+        mat.mul(matPro);
+        mat.mul(matCam);
+
+        for (int j = 0; j < indices.length; j++) {
+            int i = indices[j];
+            ListIterator<VertexData.VertexElement> itr = vertexElements
+                    .listIterator(0);
+            while (itr.hasNext()) {
+                VertexData.VertexElement e = itr.next();
+
+                if (e.getSemantic() == VertexData.Semantic.POSITION) {
+                    x = e.getData()[i * 3];
+                    y = e.getData()[i * 3 + 1];
+                    z = e.getData()[i * 3 + 2];
+                    w = 1;
+                    vec = new Vector4f(x, y, z, w);
+                    mat.transform(vec);
+
+                    vec.setX(vec.getX() / vec.getW());
+                    vec.setY(vec.getY() / vec.getW());
+                    
+                    if (vec.getX() > 0 && vec.getY() > 0
+                            && vec.getX() < this.aWidth
+                            && vec.getY() < this.aHeight) {
+                        colorBuffer.setRGB((int) vec.getX(), this.aHeight - (int) vec.getY(),
+                                Color.WHITE.getRGB());
+                    }
+                }
+
+            }
         }
     }
 

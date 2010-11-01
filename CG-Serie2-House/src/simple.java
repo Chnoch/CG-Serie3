@@ -23,7 +23,7 @@ public class simple
 	 * An extension of {@link GLRenderPanel} or {@link SWRenderPanel} to 
 	 * provide a call-back function for initialization. 
 	 */ 
-	public final static class SimpleRenderPanel extends GLRenderPanel
+	public final static class SimpleRenderPanel extends SWRenderPanel
 	{
 		/**
 		 * Initialization call-back. We initialize our renderer here.
