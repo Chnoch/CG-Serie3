@@ -94,14 +94,29 @@ public class SWRenderContext implements RenderContext {
      */
     private void draw(RenderItem renderItem) {
         VertexData vertexData = renderItem.getShape().getVertexData();
+
+        projection(vertexData);
+        rasterization();
+    }
+    
+    private void rasterization() {
+        
+    }
+
+    /**
+     *  3D to 2D Projection
+     * @param vertexData
+     */
+    private void projection(VertexData vertexData) {
         LinkedList<VertexData.VertexElement> vertexElements = vertexData
-                .getElements();
+        .getElements();
+        
         int indices[] = vertexData.getIndices();
 
         // Don't draw if there are no indices
         if (indices == null)
             return;
-
+        
         float x, y, z, w;
         Vector4f vec;
         Matrix4f mat, matPro, matCam;
