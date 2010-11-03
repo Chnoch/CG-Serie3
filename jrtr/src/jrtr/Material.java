@@ -1,8 +1,19 @@
 package jrtr;
 
+import java.awt.image.BufferedImage;
+
 /**
  * Stores the properties of a material. You will implement this 
  * class in the "Shading and Texturing" project.
  */
 public class Material {
+    private Texture texture;
+
+    public void setTexture(Texture texture) {
+        this.texture = texture;
+    }
+
+    public Texture getTexture() {
+        return texture;
+    }
 }

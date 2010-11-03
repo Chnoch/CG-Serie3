@@ -1,3 +1,5 @@
+
+
 package jrtr;
 
 import jrtr.RenderContext;
@@ -9,9 +11,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
 
+import javax.vecmath.Color3f;
 import javax.vecmath.Matrix3f;
 import javax.vecmath.Matrix4f;
 import javax.vecmath.SingularMatrixException;
+import javax.vecmath.TexCoord2f;
 import javax.vecmath.Vector4f;
 
 /**
@@ -24,269 +28,279 @@ import javax.vecmath.Vector4f;
  */
 public class SWRenderContext implements RenderContext {
 
-	private SceneManagerInterface sceneManager;
-	private BufferedImage colorBuffer;
-	private Matrix4f matVP;
-	private List<Vector4f> edges;
-	private int aWidth, aHeight;
-	private int[][] zBuffer;
+    private SceneManagerInterface sceneManager;
+    private BufferedImage colorBuffer;
+    private Matrix4f matVP;
+    private List<Vector4f> edges;
+    private List<Color3f> colors;
+    private int aWidth, aHeight;
+    private float[][] zBuffer;
 
-	public void setSceneManager(SceneManagerInterface sceneManager) {
-		this.sceneManager = sceneManager;
-	}
+    public void setSceneManager(SceneManagerInterface sceneManager) {
+        this.sceneManager = sceneManager;
+    }
 
-	/**
-	 * This is called by the SWRenderPanel to render the scene to the software
-	 * frame buffer.
-	 */
-	public void display() {
-		if (sceneManager == null)
-			return;
+    /**
+     * This is called by the SWRenderPanel to render the scene to the software
+     * frame buffer.
+     */
+    public void display() {
+        if (sceneManager == null)
+            return;
 
-		beginFrame();
+        beginFrame();
 
-		SceneManagerIterator iterator = sceneManager.iterator();
-		while (iterator.hasNext()) {
-			draw(iterator.next());
-		}
+        SceneManagerIterator iterator = sceneManager.iterator();
+        while (iterator.hasNext()) {
+            draw(iterator.next());
+        }
 
-		endFrame();
-	}
+        endFrame();
+    }
 
-	/**
-	 * This is called by the {@link SWJPanel} to obtain the color buffer that
-	 * will be displayed.
-	 */
-	public BufferedImage getColorBuffer() {
-		return colorBuffer;
-	}
+    /**
+     * This is called by the {@link SWJPanel} to obtain the color buffer that
+     * will be displayed.
+     */
+    public BufferedImage getColorBuffer() {
+        return colorBuffer;
+    }
 
-	/**
-	 * Set a new viewport size. The render context will also need to store a
-	 * viewport matrix, which you need to reset here.
-	 */
-	public void setViewportSize(int width, int height) {
-		this.aHeight = height;
-		this.aWidth = width;
-		// reset the viewport matrix
-		matVP = new Matrix4f();
-		matVP.setM00(width / 2);
-		matVP.setM03((width - 1) / 2);
-		matVP.setM11(height / 2);
-		matVP.setM13((height - 1) / 2);
-		matVP.setM22(1);
-		matVP.setM33(1);
+    /**
+     * Set a new viewport size. The render context will also need to store a
+     * viewport matrix, which you need to reset here.
+     */
+    public void setViewportSize(int width, int height) {
+        this.aHeight = height;
+        this.aWidth = width;
+        // reset the viewport matrix
+        matVP = new Matrix4f();
+        matVP.setM00(width / 2);
+        matVP.setM03((width - 1) / 2);
+        matVP.setM11(height / 2);
+        matVP.setM13((height - 1) / 2);
+        matVP.setM22(1);
+        matVP.setM33(1);
 
-		colorBuffer = new BufferedImage(width, height,
-				BufferedImage.TYPE_3BYTE_BGR);
-	}
+        colorBuffer = new BufferedImage(width, height,
+                BufferedImage.TYPE_3BYTE_BGR);
+    }
 
-	/**
-	 * Clear the framebuffer here.
-	 */
-	private void beginFrame() {
-	}
+    /**
+     * Clear the framebuffer here.
+     */
+    private void beginFrame() {
+    }
 
-	private void endFrame() {
-	}
+    private void endFrame() {
+    }
 
-	/**
-	 * The main rendering method. You will need to implement this to draw 3D
-	 * objects.
-	 */
-	private void draw(RenderItem renderItem) {
-		this.edges = new ArrayList<Vector4f>();
-		VertexData vertexData = renderItem.getShape().getVertexData();
-		zBuffer = new int[aWidth][aHeight];
-		for (int i = 0; i < aWidth; i++) {
-			for (int j = 0; j < aHeight; j++) {
-				zBuffer[i][j] = Integer.MAX_VALUE;
-			}
-		}
+    /**
+     * The main rendering method. You will need to implement this to draw 3D
+     * objects.
+     */
+    private void draw(RenderItem renderItem) {
+        this.edges = new ArrayList<Vector4f>();
+        this.colors = new ArrayList<Color3f>();
+        VertexData vertexData = renderItem.getShape().getVertexData();
+        zBuffer = new float[aWidth][aHeight];
+        for (int i = 0; i < aWidth; i++) {
+            for (int j = 0; j < aHeight; j++) {
+                zBuffer[i][j] = Float.MAX_VALUE;
+            }
+        }
 
-		projection(vertexData);
-		rasterization(vertexData);
-	}
+        projection(vertexData);
+        rasterization(vertexData);
 
-	private void rasterization(VertexData data) {
+        System.out.println("Done");
+    }
 
-		for (int i = 0; i < edges.size(); i++) {
-			int hit = 0;
-			int miss = 0;
-			System.out.print(hit + miss);
-			// create rectangles to compute pixels
-			Vector4f a = this.edges.get(i++);
-			Vector4f b = this.edges.get(i++);
-			Vector4f c = this.edges.get(i);
+    private void rasterization(VertexData data) {
 
-			// calculate edge functions
-			Matrix3f coefficients;
-			coefficients = new Matrix3f();
-			coefficients.setM00(a.getX());
-			coefficients.setM01(a.getY());
-			coefficients.setM02(a.getW());
-			coefficients.setM10(b.getX());
-			coefficients.setM11(b.getY());
-			coefficients.setM12(b.getW());
-			coefficients.setM20(c.getX());
-			coefficients.setM21(c.getY());
-			coefficients.setM22(c.getW());
+        for (int i = 0; i < edges.size(); i++) {
+            // create rectangles to compute pixels
+            Color3f aCol = this.colors.get(i);
+            Vector4f a = this.edges.get(i++);
+            Color3f bCol = this.colors.get(i);
+            Vector4f b = this.edges.get(i++);
+            Color3f cCol = this.colors.get(i);
+            Vector4f c = this.edges.get(i);
 
-			boolean singular = false;
+            // calculate edge functions
+            Matrix3f coefficients;
+            coefficients = new Matrix3f();
+            coefficients.setM00(a.getX());
+            coefficients.setM01(a.getY());
+            coefficients.setM02(a.getW());
+            coefficients.setM10(b.getX());
+            coefficients.setM11(b.getY());
+            coefficients.setM12(b.getW());
+            coefficients.setM20(c.getX());
+            coefficients.setM21(c.getY());
+            coefficients.setM22(c.getW());
 
-			try {
-				// coefficients.invert();
-				coefficients.invert(coefficients);
-			} catch (SingularMatrixException exc) {
-				singular = true;
-			}
+            boolean singular = false;
 
-			if (!singular) {
-				if (a.getW() > 0 && b.getW() > 0 && c.getW() > 0) {
-					System.out.println("Calculating a bounding box");
-					// calculate bounding box
-					int tlX, tlY, trX, trY, blX, blY, brX, brY;
+            try {
+                coefficients.invert();
+            } catch (SingularMatrixException exc) {
+                singular = true;
+            }
 
-					tlX = min(a.getX(), b.getX(), c.getX());
-					tlY = max(a.getY(), b.getY(), c.getY());
-					trX = max(a.getX(), b.getX(), c.getX());
-					trY = min(a.getY(), b.getY(), c.getY());
-					blX = min(a.getX(), b.getX(), c.getX());
-					blY = min(a.getY(), b.getY(), c.getY());
-					brX = max(a.getX(), b.getX(), c.getX());
-					brY = max(a.getY(), b.getY(), c.getY());
+            if (!singular) {
+                
+                if (checkConditions(a, b, c)) {
 
-					drawing(coefficients, tlX,trX,tlY,blY);
-					
-				} else if (a.getW()<0 && b.getW()<0 && c.getW()<0){
-					break;
-				} else {
-					drawing(coefficients, 0, aWidth,0,aHeight);
-					System.out.println("Not all vertices in view");
-				}
-			}
-		}
-	}
+                    System.out.println("Calculating a bounding box");
+                    // calculate bounding box
+                    int xLeft, yTop, xRight, yBottom;
 
-	private void drawing(Matrix3f coefficients, int tlX, int trX, int tlY, int blY) {
-		for (int j = tlX; j < trX; j++) {
-			for (int k = tlY; k > blY; k--) {
-				// Interpolate w
-				
-				// calculate whether to paint
-				float aw = coefficients.m00 * j + coefficients.m10
-						* k + coefficients.m20;
-				float bw = coefficients.m01 * j + coefficients.m11
-						* k + coefficients.m21;
-				float cw = coefficients.m02 * j + coefficients.m12
-						* k + coefficients.m22;
+                    xLeft = min(a.getX(), b.getX(), c.getX());
+                    yTop = max(a.getY(), b.getY(), c.getY());
+                    xRight = max(a.getX(), b.getX(), c.getX());
+                    yBottom = min(a.getY(), b.getY(), c.getY());
 
-				if (aw > 0 && bw > 0 && cw > 0) {
-					drawPixel(j, k, 1);
-				} 
-			}
-		}
-	}
-	/**
-	 * 3D to 2D Projection
-	 * 
-	 * @param vertexData
-	 */
-	private void projection(VertexData vertexData) {
-		LinkedList<VertexData.VertexElement> vertexElements = vertexData
-				.getElements();
+                    drawing(coefficients, xLeft, xRight, yTop, yBottom, a, b, c, aCol);
 
-		int indices[] = vertexData.getIndices();
+                } else {
+                    drawing(coefficients, 0, aWidth, aHeight, 0, a, b, c, aCol);
+                    System.out.println("Not all vertices in view");
+                }
+            }
+        }
+    }
 
-		// Don't draw if there are no indices
-		if (indices == null)
-			return;
+    private boolean checkConditions(Vector4f a, Vector4f b, Vector4f c) {
+        return a.getX() > 0 && b.getX() > 0 && c.getX() > 0 && a.getY() > 0
+                && b.getY() > 0 && c.getY() > 0;
+    }
 
-		float x, y, z, w;
-		Vector4f vec;
-		Matrix4f mat, matPro, matCam;
-		matCam = sceneManager.getCamera().getCameraMatrix();
-		matPro = sceneManager.getFrustum().getProjectionMatrix();
-		mat = new Matrix4f();
-		mat.set(matVP);
-		mat.mul(matPro);
-		mat.mul(matCam);
+    private void drawing(Matrix3f coefficients, int xLeft, int xRight,
+            int yTop, int yBottom, Vector4f a, Vector4f b, Vector4f c, Color3f col) {
+        for (int j = xLeft; j < xRight; j++) {
+            for (int k = yTop; k > yBottom; k--) {
+                // Interpolate w
+                float Z_Slope = (float)(1/b.z - 1/a.z) / (float)(b.x - a.x);
+                float z = a.z + ((j - a.x) * Z_Slope);
+                // calculate whether to paint
+                float alpha = coefficients.m00 * j / z + coefficients.m10 * k
+                        / z + coefficients.m20;
+                float beta = coefficients.m01 * j / z + coefficients.m11 * k
+                        / z + coefficients.m21;
+                float gamma = coefficients.m02 * j / z + coefficients.m12 * k
+                        / z + coefficients.m22;
 
-		for (int j = 0; j < indices.length; j++) {
-			int i = indices[j];
-			ListIterator<VertexData.VertexElement> itr = vertexElements
-					.listIterator(0);
-			while (itr.hasNext()) {
-				VertexData.VertexElement e = itr.next();
+                if (alpha > 0 && beta > 0 && gamma > 0) {
+                    drawPixel((int) (j / z), (int) (k / z), 1 / z, col);
+                }
+            }
+        }
+    }
 
-				if (e.getSemantic() == VertexData.Semantic.POSITION) {
-					x = e.getData()[i * 3];
-					y = e.getData()[i * 3 + 1];
-					z = e.getData()[i * 3 + 2];
-					w = 1;
-					vec = new Vector4f(x, y, z, w);
-					mat.transform(vec);
+    /**
+     * 3D to 2D Projection
+     * @param vertexData
+     */
+    private void projection(VertexData vertexData) {
+        LinkedList<VertexData.VertexElement> vertexElements = vertexData
+                .getElements();
 
-					// Add as homogenous coordinate before homogenous division
-					this.edges.add(new Vector4f(vec));
+        int indices[] = vertexData.getIndices();
 
-					vec.setX(vec.getX() / vec.getW());
-					vec.setY(vec.getY() / vec.getW());
+        // Don't draw if there are no indices
+        if (indices == null)
+            return;
 
-					if (vec.getX() > 0 && vec.getY() > 0
-							&& vec.getX() < this.aWidth
-							&& vec.getY() < this.aHeight) {
-						drawPixel((int) vec.getX(), (int) vec.getY(), vec
-								.getZ());
-					}
-				}
+        float x, y, z, w;
+        Vector4f vec;
+        Matrix4f mat, matPro, matCam;
+        matCam = sceneManager.getCamera().getCameraMatrix();
+        matPro = sceneManager.getFrustum().getProjectionMatrix();
+        mat = new Matrix4f();
+        mat.set(matVP);
+        mat.mul(matPro);
+        mat.mul(matCam);
 
-			}
-		}
-	}
+        for (int j = 0; j < indices.length; j++) {
+            int i = indices[j];
+            ListIterator<VertexData.VertexElement> itr = vertexElements
+                    .listIterator(0);
+            while (itr.hasNext()) {
+                VertexData.VertexElement e = itr.next();
 
-	private void drawPixel(int x, int y, float z) {
+                if (e.getSemantic() == VertexData.Semantic.POSITION) {
+                    x = e.getData()[i * 3];
+                    y = e.getData()[i * 3 + 1];
+                    z = e.getData()[i * 3 + 2];
+                    w = 1;
+                    vec = new Vector4f(x, y, z, w);
+                    mat.transform(vec);
 
-		colorBuffer.setRGB(x, aHeight - y, Color.white.getRGB());
-	}
+                    // Add as homogenous coordinate before homogenous division
+                    this.edges.add(new Vector4f(vec));
 
-	private int min(float a, float b, float c) {
-		if (a < b) {
-			if (a < c) {
-				return (int) a;
-			}
-		} else {
-			if (b < c) {
-				return (int) b;
-			}
-		}
-		return (int) c;
-	}
+                } else if (e.getSemantic() == VertexData.Semantic.COLOR) {
+                    Color3f col = new Color3f(e.getData()[i * 3],
+                            e.getData()[i * 3 + 1], e.getData()[i * 3 + 2]);
+                    this.colors.add(col);
+                } else if (e.getSemantic() == VertexData.Semantic.TEXCOORD) {
+                    TexCoord2f tex = new TexCoord2f(e.getData()[0], e.getData()[1]);
+                }
 
-	private int max(float a, float b, float c) {
-		if (a > b) {
-			if (a > c) {
-				return (int) a;
-			}
-		} else {
-			if (b > c) {
-				return (int) b;
-			}
-		}
-		return (int) c;
-	}
+            }
+        }
+    }
 
-	/**
-	 * Does nothing. We will not implement shaders for the software renderer.
-	 */
-	public Shader makeShader() {
-		return new SWShader();
-	}
+    private void drawPixel(int x, int y, float z, Color3f col) {
+        if (this.zBuffer[x][y] > z) {
+            this.zBuffer[x][y] = z;
+            try {
+                int color = (int)(255f*col.x)<<16 | (int)(255f*col.y)<<8 | (int)(255f*col.z);
+                colorBuffer.setRGB(x, aHeight - y, color);
+            } catch (ArrayIndexOutOfBoundsException exc) {
+                System.out.println("Error at pixel: x=" + x + " y=" + y);
+            }
+        }
+    }
 
-	/**
-	 * Does nothing. We will not implement textures for the software renderer.
-	 */
-	public Texture makeTexture() {
-		return new SWTexture();
-	}
+    private int min(float a, float b, float c) {
+        if (a < b) {
+            if (a < c) {
+                return (int) a;
+            }
+        } else {
+            if (b < c) {
+                return (int) b;
+            }
+        }
+        return (int) c;
+    }
+
+    private int max(float a, float b, float c) {
+        if (a > b) {
+            if (a > c) {
+                return (int) a;
+            }
+        } else {
+            if (b > c) {
+                return (int) b;
+            }
+        }
+        return (int) c;
+    }
+
+    /**
+     * Does nothing. We will not implement shaders for the software renderer.
+     */
+    public Shader makeShader() {
+        return new SWShader();
+    }
+
+    /**
+     * Does nothing. We will not implement textures for the software renderer.
+     */
+    public Texture makeTexture() {
+        return new SWTexture();
+    }
 }
