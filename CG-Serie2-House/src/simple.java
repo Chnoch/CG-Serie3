@@ -25,7 +25,7 @@ public class simple
 	 * An extension of {@link GLRenderPanel} or {@link SWRenderPanel} to 
 	 * provide a call-back function for initialization. 
 	 */ 
-	public final static class SimpleRenderPanel extends GLRenderPanel
+	public final static class SimpleRenderPanel extends SWRenderPanel
 	{
 		/**
 		 * Initialization call-back. We initialize our renderer here.
@@ -91,13 +91,21 @@ public class simple
 		sceneManager.addShape(shape);
 		Camera camera = sceneManager.getCamera();
 		Frustum frustum = sceneManager.getFrustum();
-		
-//		camera1(camera, frustum);
-		camera2(camera, frustum);
-
 		// Make a render panel. The init function of the renderPanel
 		// (see above) will be ca lled back for initialization.
 		renderPanel = new SimpleRenderPanel();
+		
+		Material mat = new Material();
+		mat.setTexture(renderContext.makeTexture());
+		try {
+		    mat.getTexture().load("texture.jpg");
+		} catch (IOException e) {
+		    e.printStackTrace();
+		}
+		shape.setMaterial(mat);
+//		camera1(camera, frustum);
+		camera2(camera, frustum);
+
 		
 		// Make the main window of this application and add the renderer to it
 		JFrame jframe = new JFrame("simple");
@@ -174,7 +182,19 @@ public class simple
 	                          0,1,0, 0,1,0, 0,1,0, 0,1,0,
 	                          0,0,1, 0,0,1, 0,0,1,};
 	       
-	        float texdata[] = {0,0, 1,0, 0,1, 1,1};
+	        float texdata[] = {0,0, 0,0.5f, 0.5f,0, 0.5f,0.5f,
+	                            0.5f,0, 0.5f,0.5f, 1,0, 1,0.5f,
+	                            0,0, 0,0.5f, 0.5f,0, 0.5f,0.5f,
+                                0.5f,0, 0.5f,0.5f, 1,0, 1,0.5f,
+                                0,0, 0,0.5f, 0.5f,0, 0.5f,0.5f,
+                                0.5f,0, 0.5f,0.5f, 1,0, 1,0.5f,
+                                
+                                0,0, 0,1, 1,0, 1,1,
+                                0,0, 0,1, 1,0, 1,1,
+                                0,0, 0,1, 1,0, 1,1,
+                                0,0, 0,1, 1,0, 1,1,
+                                0,0, 0,1, 1,0, 1,1,
+	                };
 	    
 	        // Set up the vertex data
 	        VertexData vertexData = new VertexData(42);
@@ -186,7 +206,7 @@ public class simple
 	        vertexData.addElement(colors, VertexData.Semantic.COLOR, 3);
 	        // - one element for vertex normals
 	        vertexData.addElement(normals, VertexData.Semantic.NORMAL, 3);
-	        vertexData.addElement(texdata, VertexData.Semantic.TEXCOORD, 2);
+	        vertexData.addElement(texdata, VertexData.Semantic.TEXCOORD, 3);
 	        
 	        // The index data that stores the connectivity of the triangles
 	        int indices[] = {0,2,3, 0,1,2,          // front face
@@ -205,14 +225,6 @@ public class simple
 	        vertexData.addIndices(indices);
 	    
 	        Shape house = new Shape(vertexData);
-	        Material mat = new Material();
-	        mat.setTexture(renderContext.makeTexture());
-	        try {
-                mat.getTexture().load("texture.jpg");
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-	        house.setMaterial(mat);
 	        return house;
 	    }
 	    
