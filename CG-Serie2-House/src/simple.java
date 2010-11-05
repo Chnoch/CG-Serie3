@@ -206,7 +206,7 @@ public class simple
 	        vertexData.addElement(colors, VertexData.Semantic.COLOR, 3);
 	        // - one element for vertex normals
 	        vertexData.addElement(normals, VertexData.Semantic.NORMAL, 3);
-	        vertexData.addElement(texdata, VertexData.Semantic.TEXCOORD, 3);
+	        vertexData.addElement(texdata, VertexData.Semantic.TEXCOORD, 2);
 	        
 	        // The index data that stores the connectivity of the triangles
 	        int indices[] = {0,2,3, 0,1,2,          // front face

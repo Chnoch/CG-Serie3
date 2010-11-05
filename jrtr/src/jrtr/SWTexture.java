@@ -30,14 +30,15 @@ public class SWTexture implements Texture {
     public void load(String fileName) throws IOException {
         File f = new File(fileName);
         BufferedImage im = ImageIO.read(f);
-        texture = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
+        texture = im;
+//        texture = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
 
         // Paint scaled version of image to new image
-        Graphics2D graphics2D = texture.createGraphics();
-        graphics2D.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
-                RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        graphics2D.drawImage(im, 0, 0, im.getWidth(), im.getHeight(), null);
-
-        graphics2D.dispose();
+//        Graphics2D graphics2D = texture.createGraphics();
+//        graphics2D.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+//                RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+//        graphics2D.drawImage(im, 0, 0, im.getWidth(), im.getHeight(), null);
+//
+//        graphics2D.dispose();
     }
 }
