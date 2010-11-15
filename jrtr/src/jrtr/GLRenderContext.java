@@ -2,6 +2,7 @@ package jrtr;
 
 import java.util.LinkedList;
 import java.util.ListIterator;
+import java.util.Iterator;
 import javax.media.opengl.*;
 import javax.vecmath.*;
 
@@ -22,7 +23,7 @@ public class GLRenderContext implements RenderContext {
 	public GLRenderContext(GLAutoDrawable drawable)
 	{
 		gl = drawable.getGL().getGL2();
-		gl.glEnable(GL.GL_DEPTH_TEST);
+		gl.glEnable(GL2.GL_DEPTH_TEST);
         gl.glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	}
 
@@ -51,8 +52,7 @@ public class GLRenderContext implements RenderContext {
 		SceneManagerIterator iterator = sceneManager.iterator();	
 		while(iterator.hasNext())
 		{
-			RenderItem r = iterator.next();
-			if(r.getShape()!=null) draw(r);
+			draw(iterator.next());
 		}		
 		
 		endFrame();
@@ -66,9 +66,8 @@ public class GLRenderContext implements RenderContext {
 	{
 		setLights();
 		
-        gl.glClear(GL.GL_COLOR_BUFFER_BIT);
-        gl.glClear(GL.GL_DEPTH_BUFFER_BIT);
-        // Load the projection matrix
+        gl.glClear(GL2.GL_COLOR_BUFFER_BIT);
+        gl.glClear(GL2.GL_DEPTH_BUFFER_BIT);
         gl.glMatrixMode(GL2.GL_PROJECTION);
         gl.glLoadMatrixf(matrix4fToFloat16(sceneManager.getFrustum().getProjectionMatrix()), 0);
 	}
@@ -121,7 +120,7 @@ public class GLRenderContext implements RenderContext {
 		gl.glLoadMatrixf(matrix4fToFloat16(t), 0);
 	     
         // Draw geometry
-        gl.glBegin(GL.GL_TRIANGLES);
+        gl.glBegin(GL2.GL_TRIANGLES);
 		for(int j=0; j<indices.length; j++)
 		{
 			int i = indices[j];
@@ -193,30 +192,141 @@ public class GLRenderContext implements RenderContext {
 
 	/**
 	 * Pass the material properties to OpenGL, including textures and shaders.
-	 * 
-	 * To be implemented in the "Textures and Shading" project.
 	 */
 	private void setMaterial(Material m)
 	{
+		if(m!=null)
+		{
+			float diffuse[] = new float[4];
+			diffuse[0] = m.diffuse.x;
+			diffuse[1] = m.diffuse.y;
+			diffuse[2] = m.diffuse.z;
+			diffuse[3] = 1.f;
+			gl.glMaterialfv(GL2.GL_FRONT_AND_BACK, GL2.GL_DIFFUSE, diffuse, 0);
+			
+			float ambient[] = new float[4];
+			ambient[0] = m.ambient.x;
+			ambient[1] = m.ambient.y;
+			ambient[2] = m.ambient.z;
+			ambient[3] = 1.f;
+			gl.glMaterialfv(GL2.GL_FRONT_AND_BACK, GL2.GL_AMBIENT, ambient, 0);
+
+			float specular[] = new float[4];
+			specular[0] = m.specular.x;
+			specular[1] = m.specular.y;
+			specular[2] = m.specular.z;
+			specular[3] = 1.f;
+			gl.glMaterialfv(GL2.GL_FRONT_AND_BACK, GL2.GL_SPECULAR, specular, 0);
+
+			gl.glMaterialf(GL2.GL_FRONT_AND_BACK, GL2.GL_SHININESS, m.shininess);
+
+			GLTexture tex = (GLTexture)(m.texture);
+			if(tex!=null)
+			{
+				gl.glEnable(GL2.GL_TEXTURE_2D);
+				gl.glTexEnvf(GL2.GL_TEXTURE_ENV, GL2.GL_TEXTURE_ENV_MODE, GL2.GL_MODULATE);
+				gl.glBindTexture(GL2.GL_TEXTURE_2D, tex.getId());
+				gl.glTexParameteri(GL2.GL_TEXTURE_2D, GL2.GL_TEXTURE_MAG_FILTER, GL2.GL_LINEAR);
+				gl.glTexParameteri(GL2.GL_TEXTURE_2D, GL2.GL_TEXTURE_MIN_FILTER, GL2.GL_LINEAR);
+			}
+			if(m.shader!=null)
+			{
+				m.shader.use();
+			}
+		}
 	}
 	
 	/**
 	 * Pass the light properties to OpenGL. This assumes the list of lights in 
 	 * the scene manager is accessible via a method Iterator<Light> lightIterator().
-	 * 
-	 * To be implemented in the "Textures and Shading" project.
 	 */
 	void setLights()
 	{	
+		int lightIndex[] = {GL2.GL_LIGHT0, GL2.GL_LIGHT1, GL2.GL_LIGHT2, GL2.GL_LIGHT3, GL2.GL_LIGHT4, GL2.GL_LIGHT5, GL2.GL_LIGHT6, GL2.GL_LIGHT7};
+
+		gl.glMatrixMode(GL2.GL_MODELVIEW);
+		gl.glLoadIdentity();
+
+		Iterator<Light> iter = sceneManager.lightIterator();
+
+		if(iter.hasNext())
+		{
+			// Lighting
+			gl.glEnable(GL2.GL_LIGHTING);
+		}
+
+		int i=0;
+		Light l;
+		while(iter.hasNext() && i<8)
+		{
+			l = iter.next(); 
+
+			gl.glEnable(lightIndex[i]);
+
+			if(l.type == Light.Type.DIRECTIONAL)
+			{
+				float[] direction = new float[4];
+				direction[0] = l.direction.x;
+				direction[1] = l.direction.y;
+				direction[2] = l.direction.z;
+				direction[3] = 0.f;
+				gl.glLightfv(lightIndex[i], GL2.GL_POSITION, direction, 0);
+			}
+			if(l.type == Light.Type.POINT || l.type == Light.Type.SPOT)
+			{
+				float[] position = new float[4];
+				position[0] = l.position.x;
+				position[1] = l.position.y;
+				position[2] = l.position.z;
+				position[3] = 1.f;
+				gl.glLightfv(lightIndex[i], GL2.GL_POSITION, position, 0);
+			}
+			if(l.type == Light.Type.SPOT)
+			{
+				float[] spotDirection = new float[3];
+				spotDirection[0] = l.spotDirection.x;
+				spotDirection[1] = l.spotDirection.y;
+				spotDirection[2] = l.spotDirection.z;
+				gl.glLightfv(lightIndex[i], GL2.GL_SPOT_DIRECTION, spotDirection, 0);
+				gl.glLightf(lightIndex[i], GL2.GL_SPOT_EXPONENT, l.spotExponent);
+				gl.glLightf(lightIndex[i], GL2.GL_SPOT_CUTOFF, l.spotCutoff);
+			}
+
+			float[] diffuse = new float[4];
+			diffuse[0] = l.diffuse.x;
+			diffuse[1] = l.diffuse.y;
+			diffuse[2] = l.diffuse.z;
+			diffuse[3] = 1.f;
+			gl.glLightfv(lightIndex[i], GL2.GL_DIFFUSE, diffuse, 0);
+
+			float[] ambient = new float[4];
+			ambient[0] = l.ambient.x;
+			ambient[1] = l.ambient.y;
+			ambient[2] = l.ambient.z;
+			ambient[3] = 0;
+			gl.glLightfv(lightIndex[i], GL2.GL_AMBIENT, ambient, 0);
+
+			float[] specular = new float[4];
+			specular[0] = l.specular.x;
+			specular[1] = l.specular.y;
+			specular[2] = l.specular.z;
+			specular[3] = 0;
+			gl.glLightfv(lightIndex[i], GL2.GL_SPECULAR, specular, 0);
+			
+			i++;
+		}
 	}
 
-	/**
-	 * Disable a material.
-	 * 
-	 * To be implemented in the "Textures and Shading" project.
-	 */
 	private void cleanMaterial(Material m)
 	{
+		if(m!=null && m.texture!=null)
+		{
+			gl.glDisable(GL2.GL_TEXTURE_2D);
+		}
+		if(m!=null && m.shader!=null)
+		{
+			m.shader.disable();
+		}
 	}
 
 	public Shader makeShader()
@@ -229,4 +339,3 @@ public class GLRenderContext implements RenderContext {
 		return new GLTexture(gl);
 	}
 }
-	
