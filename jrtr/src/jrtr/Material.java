@@ -21,4 +21,8 @@ public class Material {
 		ambient = new Vector3f(1.f, 1.f, 1.f);
 		shininess = 1.f;
 	}
+	
+	public void setTexture(Texture tex) {
+		texture = tex;
+	}
 }

@@ -3,47 +3,58 @@ package jrtr;
 import jrtr.RenderContext;
 
 import java.awt.Color;
-import java.awt.Graphics2D;
 import java.awt.image.*;
+import java.util.ArrayList;
 import java.util.LinkedList;
-import javax.vecmath.*;
+import java.util.List;
+import java.util.ListIterator;
 
+import javax.vecmath.Color3f;
+import javax.vecmath.Matrix3f;
+import javax.vecmath.Matrix4f;
+import javax.vecmath.SingularMatrixException;
+import javax.vecmath.TexCoord2f;
+import javax.vecmath.Vector4f;
 
 /**
  * A skeleton for a software renderer. It works in combination with
- * {@link SWRenderPanel}, which displays the output image. In project 3 
- * you will implement your own rasterizer in this class.
+ * {@link SWRenderPanel}, which displays the output image. In project 3 you will
+ * implement your own rasterizer in this class.
  * <p>
- * To use the software renderer, you will simply replace {@link GLRenderPanel} 
+ * To use the software renderer, you will simply replace {@link GLRenderPanel}
  * with {@link SWRenderPanel} in the user application.
  */
 public class SWRenderContext implements RenderContext {
 
 	private SceneManagerInterface sceneManager;
-	private BufferedImage colorBuffer;
+	private BufferedImage colorBuffer, texture;
+	private Matrix4f matVP;
+	private List<Vector4f> edges;
+	private List<Color3f> colors;
+	private List<TexCoord2f> texCoords;
+	private int aWidth, aHeight;
 	private float[][] zBuffer;
-		
-	public void setSceneManager(SceneManagerInterface sceneManager)
-	{
-		this.sceneManager = sceneManager;	
+	private RenderItem renderItem;
+
+	public void setSceneManager(SceneManagerInterface sceneManager) {
+		this.sceneManager = sceneManager;
 	}
-	
+
 	/**
-	 * This is called by the SWRenderPanel to render the scene to the 
-	 * software frame buffer.
+	 * This is called by the SWRenderPanel to render the scene to the software
+	 * frame buffer.
 	 */
-	public void display()
-	{
-		if(sceneManager == null) return;
-		
+	public void display() {
+		if (sceneManager == null)
+			return;
+
 		beginFrame();
-	
-		SceneManagerIterator iterator = sceneManager.iterator();	
-		while(iterator.hasNext())
-		{
+
+		SceneManagerIterator iterator = sceneManager.iterator();
+		while (iterator.hasNext()) {
 			draw(iterator.next());
-		}		
-		
+		}
+
 		endFrame();
 	}
 
@@ -51,183 +62,327 @@ public class SWRenderContext implements RenderContext {
 	 * This is called by the {@link SWJPanel} to obtain the color buffer that
 	 * will be displayed.
 	 */
-	public BufferedImage getColorBuffer()
-	{
+	public BufferedImage getColorBuffer() {
 		return colorBuffer;
 	}
-	
+
 	/**
-	 * Set a new viewport size. The render context will also need to store
-	 * a viewport matrix, which you need to reset here. 
+	 * Set a new viewport size. The render context will also need to store a
+	 * viewport matrix, which you need to reset here.
 	 */
-	public void setViewportSize(int width, int height)
-	{
-		colorBuffer = new BufferedImage(width, height, BufferedImage.TYPE_3BYTE_BGR);
-		zBuffer = new float[width][height];		
+	public void setViewportSize(int width, int height) {
+		this.aHeight = height;
+		this.aWidth = width;
+		// reset the viewport matrix
+		matVP = new Matrix4f();
+		matVP.setM00(width / 2);
+		matVP.setM03((width - 1) / 2);
+		matVP.setM11(height / 2);
+		matVP.setM13((height - 1) / 2);
+		matVP.setM22(1);
+		matVP.setM33(1);
+
+		colorBuffer = new BufferedImage(width, height,
+				BufferedImage.TYPE_3BYTE_BGR);
 	}
-		
+
 	/**
 	 * Clear the framebuffer here.
 	 */
-	private void beginFrame()
-	{
-		colorBuffer.getGraphics().clearRect(0, 0, colorBuffer.getWidth(), colorBuffer.getHeight());
-		zBuffer = new float[colorBuffer.getWidth()][colorBuffer.getHeight()];
+	private void beginFrame() {
 	}
-	
-	private void endFrame()
-	{		
+
+	private void endFrame() {
 	}
-	
+
 	/**
-	 * The main rendering method. You will need to implement this to draw
-	 * 3D objects.
+	 * The main rendering method. You will need to implement this to draw 3D
+	 * objects.
 	 */
-	private void draw(RenderItem renderItem){		
+	private void draw(RenderItem renderItem) {
+		this.renderItem = renderItem;
+		this.edges = new ArrayList<Vector4f>();
+		this.colors = new ArrayList<Color3f>();
+		this.texCoords = new ArrayList<TexCoord2f>();
 		VertexData vertexData = renderItem.getShape().getVertexData();
-		LinkedList<VertexData.VertexElement> elements = vertexData.getElements();
-		int indices[] = vertexData.getIndices();
-		float[] v = null, c = null, t=null;
-		
-		//get the vertex position and color array
-		for(VertexData.VertexElement element : elements){
-			if(element.getSemantic() == VertexData.Semantic.POSITION){
-				v = element.getData();
+		zBuffer = new float[aWidth][aHeight];
+		for (int i = 0; i < aWidth; i++) {
+			for (int j = 0; j < aHeight; j++) {
+				zBuffer[i][j] = Float.MAX_VALUE;
 			}
-			if(element.getSemantic() == VertexData.Semantic.COLOR){
-				c = element.getData();
-			}
-			if(element.getSemantic() == VertexData.Semantic.TEXCOORD){
-				t = element.getData();
-			}
-		}
-		//compute the world-to-pixel matrix
-		Matrix4f world = new Matrix4f();
-		Matrix4f camera = new Matrix4f();		
-		Matrix4f projection = new Matrix4f();
-		Matrix4f viewport = new Matrix4f();
-		Matrix4f fullTransform = new Matrix4f();
-		
-		world.set(renderItem.getT());
-		camera.set(sceneManager.getCamera().getCameraMatrix());		
-		projection.set(sceneManager.getFrustum().getProjectionMatrix());		
-		viewport.set(viewportMatrix(0, colorBuffer.getWidth(), 0, colorBuffer.getHeight()));
-		
-		fullTransform.setIdentity();
-		fullTransform.mul(viewport);
-		fullTransform.mul(projection);
-		fullTransform.mul(camera);
-		fullTransform.mul(world);
-		
-		
-		for(int i = 0; i<indices.length; i+=3){
-			
-			int index1 = indices[i];
-			int index2 = indices[i+1];
-			int index3 = indices[i+2];
-			
-			Vector4f point1=new Vector4f(), point2=new Vector4f(), point3=new Vector4f();
-			Vector4f transformedPoint1, transformedPoint2, transformedPoint3;
-			
-			//read vertex coordinates
-			point1.x = v[index1*3];
-			point1.y = v[index1*3+1];
-			point1.z = v[index1*3+2];
-			point1.w = 1;			
-			transformedPoint1 = VectorUtil.matMulVec4f(fullTransform, point1);	
-			point2.x = v[index2*3];
-			point2.y = v[index2*3+1];
-			point2.z = v[index2*3+2];
-			point2.w = 1;			
-			transformedPoint2 = VectorUtil.matMulVec4f(fullTransform, point2);	
-			point3.x = v[index3*3];
-			point3.y = v[index3*3+1];
-			point3.z = v[index3*3+2];
-			point3.w = 1;			
-			transformedPoint3 = VectorUtil.matMulVec4f(fullTransform, point3);	
-			
-			//read colors
-			Color color1 = new Color(c[index1*3], c[index1*3+1], c[index1*3+2]);
-			Color color2 = new Color(c[index2*3], c[index2*3+1], c[index2*3+2]);
-			Color color3 = new Color(c[index3*3], c[index3*3+1], c[index3*3+2]);
-			
-			//read texture coordinates		
-			Point2f tex1 = new Point2f(t[index1*2], t[index1*2+1]);
-			Point2f tex2 = new Point2f(t[index2*2], t[index2*2+1]);
-			Point2f tex3 = new Point2f(t[index3*2], t[index3*2+1]);
-			
-			
-			TriangleCalc triangle = new TriangleCalc(transformedPoint1, transformedPoint2, transformedPoint3, tex1, tex2, tex3, 
-					renderItem.getShape().getMaterial().getTexture().getImage());			
-			int[] box = createBoundingBox(transformedPoint1, transformedPoint2, transformedPoint3);			
-			
-			//check pixels if in triangle
-			for(int x=box[0]; x<box[1];x++){
-				for(int y=box[2]; y<box[3];y++){
-					if(triangle.insideTriangle(x, y)){
-						float w = triangle.interpolate1W(x, y);
-						if(w > zBuffer[x][y]) {
-							zBuffer[x][y] = w;
-							try{
-								if(x>colorBuffer.getWidth()/2){
-									colorBuffer.setRGB(x, colorBuffer.getHeight()-1-y, (int) triangle.bilinearFiltering(x, y));	
-								} else{
-									colorBuffer.setRGB(x, colorBuffer.getHeight()-1-y, (int) triangle.nearestNeighbour(x, y));	
-								}	
-							} catch (Exception e){
-							}
-						}
-					}
-				}
-			}			
-		    //draw bounding boxes
-		/*
-			colorBuffer.getGraphics().drawRect(box[0], colorBuffer.getHeight()-1-box[3], 
-					box[1]-box[0], (box[3]-box[2]));	
-			*/
 		}
 
+		projection(vertexData);
+		rasterization(renderItem, vertexData);
+		textures(renderItem);
+
+		System.out.println("Done");
+	}
+
+	private void textures(RenderItem item) {
+		// Preparing texture
+		Texture tex = item.getShape().getMaterial().texture;
+		if (tex instanceof SWTexture) {
+			texture = ((SWTexture) tex).getTexture();
+		}
+	}
+
+	private void rasterization(RenderItem item, VertexData data) {
+
+		for (int i = 0; i < edges.size(); i++) {
+
+			Color3f aCol = this.colors.get(i);
+			// TexCoord2f aTex = this.texCoords.get(i);
+			Vector4f a = this.edges.get(i++);
+			Color3f bCol = this.colors.get(i);
+			// TexCoord2f bTex = this.texCoords.get(i);
+			Vector4f b = this.edges.get(i++);
+			Color3f cCol = this.colors.get(i);
+			// TexCoord2f cTex = this.texCoords.get(i);
+			Vector4f c = this.edges.get(i);
+
+			// calculate edge functions
+			Matrix3f coefficients;
+			coefficients = new Matrix3f();
+			coefficients.setM00(a.getX());
+			coefficients.setM01(a.getY());
+			coefficients.setM02(a.getW());
+			coefficients.setM10(b.getX());
+			coefficients.setM11(b.getY());
+			coefficients.setM12(b.getW());
+			coefficients.setM20(c.getX());
+			coefficients.setM21(c.getY());
+			coefficients.setM22(c.getW());
+
+			boolean singular = false;
+
+			try {
+				coefficients.invert();
+			} catch (SingularMatrixException exc) {
+				singular = true;
+			}
+
+			if (!singular) {
+
+				if (checkConditions(a, b, c)) {
+
+					System.out.println("Calculating a bounding box");
+					// calculate bounding box
+					int xLeft, yTop, xRight, yBottom;
+
+					xLeft = min(a.getX(), b.getX(), c.getX());
+					yTop = max(a.getY(), b.getY(), c.getY());
+					xRight = max(a.getX(), b.getX(), c.getX());
+					yBottom = min(a.getY(), b.getY(), c.getY());
+
+					if (i > 37) {
+
+						drawing(coefficients, xLeft, xRight, yTop, yBottom, a,
+								b, c);
+					} else {
+						drawing(coefficients, xLeft, xRight, yTop, yBottom, a,
+								b, c, aCol);
+					}
+
+				} else {
+					drawing(coefficients, 0, aWidth, aHeight, 0, a, b, c, aCol);
+					System.out.println("Not all vertices in view");
+				}
+			}
+		}
+	}
+
+	private boolean checkConditions(Vector4f a, Vector4f b, Vector4f c) {
+		return a.getX() > 0 && b.getX() > 0 && c.getX() > 0 && a.getY() > 0
+				&& b.getY() > 0 && c.getY() > 0;
+	}
+
+	private void drawing(Matrix3f coefficients, int xLeft, int xRight,
+			int yTop, int yBottom, Vector4f a, Vector4f b, Vector4f c,
+			Color3f col) {
+		for (int j = xLeft; j < xRight; j++) {
+			for (int k = yTop; k > yBottom; k--) {
+				// Interpolate w
+				float Z_Slope = (float) (1 / b.z - 1 / a.z)
+						/ (float) (b.x - a.x);
+				float z = a.z + ((j - a.x) * Z_Slope);
+				// calculate whether to paint
+				float alpha = coefficients.m00 * j / z + coefficients.m10 * k
+						/ z + coefficients.m20;
+				float beta = coefficients.m01 * j / z + coefficients.m11 * k
+						/ z + coefficients.m21;
+				float gamma = coefficients.m02 * j / z + coefficients.m12 * k
+						/ z + coefficients.m22;
+
+				if (alpha > 0 && beta > 0 && gamma > 0) {
+					drawPixel((int) (j / z), (int) (k / z), 1 / z, col);
+				}
+			}
+		}
+	}
+
+	private void drawing(Matrix3f coefficients, int xLeft, int xRight,
+			int yTop, int yBottom, Vector4f a, Vector4f b, Vector4f c) {
+
+		Texture tex = this.renderItem.getShape().getMaterial().texture;
+		BufferedImage im = null;
+		if (tex instanceof SWTexture) {
+			im = ((SWTexture) tex).getTexture();
+		}
+
+		for (int j = xLeft; j < xRight; j++) {
+			for (int k = yTop; k > yBottom; k--) {
+				// Interpolate w
+				float Z_Slope = (float) (1 / b.z - 1 / a.z)
+						/ (float) (b.x - a.x);
+				float z = a.z + ((j - a.x) * Z_Slope);
+				// calculate whether to paint
+				float alpha = coefficients.m00 * j / z + coefficients.m10 * k
+						/ z + coefficients.m20;
+				float beta = coefficients.m01 * j / z + coefficients.m11 * k
+						/ z + coefficients.m21;
+				float gamma = coefficients.m02 * j / z + coefficients.m12 * k
+						/ z + coefficients.m22;
+
+				if (alpha > 0 && beta > 0 && gamma > 0) {
+
+					try {
+						int col = im.getRGB((int) (j / z), (int) (k / z));
+						drawPixel((int) (j / z), (int) (k / z), 1 / z, col);
+					} catch (ArrayIndexOutOfBoundsException exc) {
+						System.out.println("catch");
+						int col = im.getRGB(0,0);
+						drawPixel((int) (j / z), (int) (k / z), 1 / z, col);
+					}
+
+				}
+			}
+		}
+	}
+
+	/**
+	 * 3D to 2D Projection
+	 * 
+	 * @param vertexData
+	 */
+	private void projection(VertexData vertexData) {
+		LinkedList<VertexData.VertexElement> vertexElements = vertexData
+				.getElements();
+
+		int indices[] = vertexData.getIndices();
+
+		// Don't draw if there are no indices
+		if (indices == null)
+			return;
+
+		float x, y, z, w;
+		Vector4f vec;
+		Matrix4f mat, matPro, matCam;
+		matCam = sceneManager.getCamera().getCameraMatrix();
+		matPro = sceneManager.getFrustum().getProjectionMatrix();
+		mat = new Matrix4f();
+		mat.set(matVP);
+		mat.mul(matPro);
+		mat.mul(matCam);
+
+		for (int j = 0; j < indices.length; j++) {
+			int i = indices[j];
+			ListIterator<VertexData.VertexElement> itr = vertexElements
+					.listIterator(0);
+			while (itr.hasNext()) {
+				VertexData.VertexElement e = itr.next();
+
+				if (e.getSemantic() == VertexData.Semantic.POSITION) {
+					x = e.getData()[i * 3];
+					y = e.getData()[i * 3 + 1];
+					z = e.getData()[i * 3 + 2];
+					w = 1;
+					vec = new Vector4f(x, y, z, w);
+					mat.transform(vec);
+
+					// Add as homogenous coordinate before homogenous division
+					this.edges.add(new Vector4f(vec));
+
+				} else if (e.getSemantic() == VertexData.Semantic.COLOR) {
+					Color3f col = new Color3f(e.getData()[i * 3],
+							e.getData()[i * 3 + 1], e.getData()[i * 3 + 2]);
+					this.colors.add(col);
+				} else if (e.getSemantic() == VertexData.Semantic.NORMAL) {
+
+				} else if (e.getSemantic() == VertexData.Semantic.TEXCOORD) {
+					System.out.println("TexCoord");
+					TexCoord2f tex = new TexCoord2f(e.getData()[i * 2], e
+							.getData()[i * 2 + 1]);
+					this.texCoords.add(tex);
+				}
+
+			}
+		}
+	}
+
+	private void drawPixel(int x, int y, float z, Color3f col) {
+		if (this.zBuffer[x][y] > z) {
+			this.zBuffer[x][y] = z;
+			try {
+				int color = (int) (255f * col.x) << 16
+						| (int) (255f * col.y) << 8 | (int) (255f * col.z);
+				colorBuffer.setRGB(x, aHeight - y, color);
+			} catch (ArrayIndexOutOfBoundsException exc) {
+				System.out.println("Error at pixel: x=" + x + " y=" + y);
+			}
+		}
+	}
+
+	private void drawPixel(int x, int y, float z, int col) {
+		if (this.zBuffer[x][y] > z) {
+			this.zBuffer[x][y] = z;
+			try {
+				// int color = (int)(255f*col.x)<<16 | (int)(255f*col.y)<<8 |
+				// (int)(255f*col.z);
+				colorBuffer.setRGB(x, aHeight - y, col);
+			} catch (ArrayIndexOutOfBoundsException exc) {
+				System.out.println("Error at pixel: x=" + x + " y=" + y);
+			}
+		}
+	}
+
+	private int min(float a, float b, float c) {
+		if (a < b) {
+			if (a < c) {
+				return (int) a;
+			}
+		} else {
+			if (b < c) {
+				return (int) b;
+			}
+		}
+		return (int) c;
+	}
+
+	private int max(float a, float b, float c) {
+		if (a > b) {
+			if (a > c) {
+				return (int) a;
+			}
+		} else {
+			if (b > c) {
+				return (int) b;
+			}
+		}
+		return (int) c;
 	}
 
 	/**
 	 * Does nothing. We will not implement shaders for the software renderer.
 	 */
-	public Shader makeShader()	
-	{
+	public Shader makeShader() {
 		return new SWShader();
 	}
 
 	/**
 	 * Does nothing. We will not implement textures for the software renderer.
 	 */
-	public Texture makeTexture()
-	{
+	public Texture makeTexture() {
 		return new SWTexture();
 	}
-	
-	private static Matrix4f viewportMatrix(int x0, int x1, int y0, int y1){
-		return new Matrix4f((x1-x0)/2f, 0f, 0f, (x0+x1)/2f,
-				0f, (y1-y0)/2f, 0f, (y0+y1)/2f,
-				0f, 0f, 0.5f, 0.5f,
-				0f, 0f, 0f, 1f);
-	}
-	
-	private int[] createBoundingBox(Vector4f p1,Vector4f p2, Vector4f p3) {		
-		final int SPACE = 1;  //makes the boxes a bit bigger to account for numeric errors
-		int xmin=0, xmax=colorBuffer.getWidth(), ymin=0, ymax=colorBuffer.getHeight();
-		float point1x = p1.x/p1.w;
-		float point2x = p2.x/p2.w;
-		float point3x = p3.x/p3.w;
-		float point1y = p1.y/p1.w;
-		float point2y = p2.y/p2.w;
-		float point3y = p3.y/p3.w;		
-		xmin = (int) Math.max(Math.min(Math.min(point1x, point2x), point3x)-SPACE, 0);
-		xmax = (int) Math.min(Math.max(Math.max(point1x, point2x), point3x)+SPACE, colorBuffer.getWidth());
-		ymin = (int) Math.max(Math.min(Math.min(point1y, point2y), point3y)-SPACE, 0);
-		ymax = (int) Math.min(Math.max(Math.max(point1y, point2y), point3y)+SPACE, colorBuffer.getHeight());		
-		return new int[] {xmin, xmax, ymin, ymax};
-	}
-	
-	
-	
 }
