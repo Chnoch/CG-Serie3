@@ -1,6 +1,6 @@
 package jrtr;
 
-import javax.media.opengl.GL;
+import javax.media.opengl.*;
 import java.io.File;
 import java.io.IOException;
 import javax.imageio.ImageIO;
@@ -8,18 +8,17 @@ import java.awt.image.*;
 import java.nio.*;
 
 /**
- * Manages OpenGL textures. This class will be used in the
- * "Texturing and Shading" project.
+ * An OpenGL texture.
  */
 public class GLTexture implements Texture {
 	
-	private GL gl;			// The OpenGL context that stores the texture
+	private GL2 gl;			// The OpenGL context that stores the texture
 	private IntBuffer id;	// Stores the OpenGL texture identifier
 	private int w, h;		// Width and height
 	
-	public GLTexture(GL g)
+	public GLTexture(GL2 gl)
 	{
-		this.gl = g;
+		this.gl = gl;
 		id = IntBuffer.allocate(1);	// Make the buffer that will store the texture identifier
 	}
 
@@ -33,15 +32,15 @@ public class GLTexture implements Texture {
 		File f = new File(fileName);
 		i = ImageIO.read(f);
 	
-		gl.glPixelStorei(GL.GL_UNPACK_ALIGNMENT, 1);
+		gl.glPixelStorei(GL2.GL_UNPACK_ALIGNMENT, 1);
 		gl.glGenTextures(1, id);
-		gl.glBindTexture(GL.GL_TEXTURE_2D, id.get(0));
+		gl.glBindTexture(GL2.GL_TEXTURE_2D, id.get(0));
 
 		w = i.getWidth();
 		h = i.getHeight();
 		
 		IntBuffer buf = getData(i);
-		gl.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGBA, w, h, 0, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE, buf);			
+		gl.glTexImage2D(GL2.GL_TEXTURE_2D, 0, GL2.GL_RGBA, w, h, 0, GL2.GL_RGBA, GL2.GL_UNSIGNED_BYTE, buf);			
 	}
 	
 	public int getId()

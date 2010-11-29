@@ -1,6 +1,7 @@
 package jrtr;
 
 import java.util.LinkedList;
+import java.util.List;
 import java.util.ListIterator;
 import java.util.Iterator;
 
@@ -10,6 +11,7 @@ import java.util.Iterator;
 public class SimpleSceneManager implements SceneManagerInterface {
 
 	private LinkedList<Shape> shapes;
+	private List<Light> lights;
 	private Camera camera;
 	private Frustum frustum;
 	
@@ -18,6 +20,7 @@ public class SimpleSceneManager implements SceneManagerInterface {
 		shapes = new LinkedList<Shape>();
 		camera = new Camera();
 		frustum = new Frustum();
+		lights = new LinkedList<Light>();
 	}
 	
 	public Camera getCamera()
@@ -45,7 +48,13 @@ public class SimpleSceneManager implements SceneManagerInterface {
 	 */
 	public Iterator<Light> lightIterator()
 	{
-		return null;
+		return lights.iterator();
+	}
+	
+	public void addLight(Light light) {
+		if (!(lights.size()>=7)) {
+			this.lights.add(light);
+		}
 	}
 
 	private class SimpleSceneManagerItr implements SceneManagerIterator {
