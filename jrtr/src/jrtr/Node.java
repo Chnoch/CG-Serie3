@@ -10,5 +10,8 @@ public interface Node {
     public void setTransformationMatrix(Matrix4f t);
     public Shape getShape();
     public void setShape(Shape shape);
+    public Light getLight();
+    public void setLight(Light light);
     public List<Node> getChildren();
+    public void addChild(Node child);
 }

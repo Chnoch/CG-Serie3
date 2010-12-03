@@ -27,6 +27,13 @@ public abstract class Group implements Node {
     @Override
     public void setShape(Shape shape) {
     }
+    
+    public Light getLight() {
+        return null;
+    }
+    
+    public void setLight(Light light){
+    }
 
     @Override
     public Matrix4f getTransformationMatrix() {

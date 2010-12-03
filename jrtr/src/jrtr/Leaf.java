@@ -12,6 +12,9 @@ public abstract class Leaf implements Node {
     public List<Node> getChildren() {
         return null;
     }
+    
+    public void addChild(Node child) {
+    }
 
     @Override
     public Matrix4f getTransformationMatrix() {

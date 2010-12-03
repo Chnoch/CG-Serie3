@@ -17,4 +17,13 @@ public class ShapeNode extends Leaf {
     public Shape getShape() {
         return this.shape;
     }
+
+    @Override
+    public Light getLight() {
+        return null;
+    }
+
+    @Override
+    public void setLight(Light light) {
+    }
 }
