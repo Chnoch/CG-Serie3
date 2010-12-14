@@ -64,7 +64,7 @@ public class GraphSceneManager implements SceneManagerInterface {
             lights = new LinkedList<Light>();
             init(root, shape);
         }
-        
+
         public List<Light> getLights() {
             return lights;
         }
@@ -74,17 +74,22 @@ public class GraphSceneManager implements SceneManagerInterface {
                 if (node.getShape() != null) {
                     stack.push(new RenderItem(node.getShape(), node
                             .getTransformationMatrix()));
-                    return;
                 }
             } else {
                 if (node instanceof LightNode) {
-                    Vector3f pos = node.getLight().position; 
+                    Vector3f pos = node.getLight().position;
                     Matrix3f trans = new Matrix3f();
                     Matrix4f oldTrans = node.getTransformationMatrix();
-                    trans.setColumn(0, oldTrans.m00, oldTrans.m10, oldTrans.m20);
-                    trans.setColumn(1, oldTrans.m01, oldTrans.m11, oldTrans.m21);
-                    trans.setColumn(2, oldTrans.m02, oldTrans.m12, oldTrans.m22);
-                    
+                    trans
+                            .setColumn(0, oldTrans.m00, oldTrans.m10,
+                                    oldTrans.m20);
+                    trans
+                            .setColumn(1, oldTrans.m01, oldTrans.m11,
+                                    oldTrans.m21);
+                    trans
+                            .setColumn(2, oldTrans.m02, oldTrans.m12,
+                                    oldTrans.m22);
+
                     trans.transform(pos);
                     node.getLight().position = pos;
                     lights.add(node.getLight());

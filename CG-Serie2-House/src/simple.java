@@ -60,8 +60,8 @@ public class simple {
     public static class AnimationTask extends TimerTask {
         public void run() {
             // Update transformation
-            Matrix4f t = root.getTransformationMatrix();
 //            Matrix4f t = new Matrix4f(1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1);
+            Matrix4f t = root.getTransformationMatrix();
             Matrix4f rotZ = new Matrix4f();
             rotZ.rotY(angle);
             t.mul(rotZ);
