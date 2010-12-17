@@ -34,14 +34,14 @@ public class bezier {
             renderContext = r;
             renderContext.setSceneManager(sceneManager);
 
-            Shader s = r.makeShader();
-            try {
-                s.load("..\\shaders\\phong.vert", "..\\shaders\\phong.frag");
-            } catch (Exception e) {
-                System.out.print("Problem with shader:\n");
-                System.out.print(e.getMessage());
-            }
-            s.use();
+//            Shader s = r.makeShader();
+//            try {
+//                s.load("..\\shaders\\phong.vert", "..\\shaders\\phong.frag");
+//            } catch (Exception e) {
+//                System.out.print("Problem with shader:\n");
+//                System.out.print(e.getMessage());
+//            }
+//            s.use();
 
             // Register a timer task
             // Timer timer = new Timer();
@@ -396,7 +396,7 @@ public class bezier {
         material.specular = new Vector3f(1,1,1);
         material.shininess = 8;
         
-        Vector3f translation = new Vector3f(10,10,0);
+        Vector3f translation = new Vector3f(0,0,0);
 
         Shape shape = makeBezier(2, points, 100, 100, translation);
         shape.setMaterial(material);
