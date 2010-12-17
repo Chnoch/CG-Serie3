@@ -48,16 +48,16 @@ public class scene {
             Texture tex2 = renderContext.makeTexture();
             Texture tex3 = renderContext.makeTexture();
             try {
-                tex1.load("..\\textures\\texture1.jpg");
+                tex1.load("..\\textures\\texture4.jpg");
                 tex2.load("..\\textures\\texture2.jpg");
                 tex3.load("..\\textures\\texture3.jpg");
             } catch (IOException e) {
                 System.err.println("Loading texture failed");
                 e.printStackTrace();
             }
-            material.setTexture(tex3);
+            material.setTexture(tex1);
             material2.setTexture(tex2);
-//            material3.setTexture(tex);
+            material3.setTexture(tex3);
             
 
             // Register a timer task
@@ -433,7 +433,7 @@ public class scene {
         Light light2 = new Light();
         light.type = Light.Type.POINT;
         light.position = new Vector3f(0, -40, 10);
-        light.specular = new Vector3f(1, 1, 1);
+        light.specular = new Vector3f(0.3f, 0.3f, 0.3f);
         light.diffuse = new Vector3f(0.5f, 0.5f, 0.5f);
         light.ambient = new Vector3f(0.2f, 0.2f, 0.2f);
 
@@ -492,7 +492,7 @@ public class scene {
         
         material3 = new Material();
         material3.ambient = new Vector3f(0.3f,0.3f,0.3f);
-        material3.diffuse = new Vector3f(0.8f,0.8f,0);
+        material3.diffuse = new Vector3f(0.8f,0.8f,0.8f);
         material3.specular = new Vector3f(0.5f,0.5f,0.5f);
         material3.shininess = 8;
         
