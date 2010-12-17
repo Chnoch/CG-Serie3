@@ -13,7 +13,7 @@ import java.util.TimerTask;
  * Implements a simple application that opens a 3D rendering window and shows a
  * rotating cube.
  */
-public class bezier {
+public class scene {
     static RenderPanel renderPanel;
     static RenderContext renderContext;
     static SimpleSceneManager sceneManager;
@@ -34,14 +34,31 @@ public class bezier {
             renderContext = r;
             renderContext.setSceneManager(sceneManager);
 
-            Shader s = r.makeShader();
+//            Shader s = r.makeShader();
+//            try {
+//                s.load("..\\shaders\\textures.vert", "..\\shaders\\textures.frag");
+//            } catch (Exception e) {
+//                System.out.print("Problem with shader:\n");
+//                System.out.print(e.getMessage());
+//            }
+//            s.use();
+            
+
+            Texture tex1 = renderContext.makeTexture();
+            Texture tex2 = renderContext.makeTexture();
+            Texture tex3 = renderContext.makeTexture();
             try {
-                s.load("..\\shaders\\phong.vert", "..\\shaders\\phong.frag");
-            } catch (Exception e) {
-                System.out.print("Problem with shader:\n");
-                System.out.print(e.getMessage());
+                tex1.load("..\\textures\\texture1.jpg");
+                tex2.load("..\\textures\\texture2.jpg");
+                tex3.load("..\\textures\\texture3.jpg");
+            } catch (IOException e) {
+                System.err.println("Loading texture failed");
+                e.printStackTrace();
             }
-            s.use();
+            material.setTexture(tex3);
+            material2.setTexture(tex2);
+//            material3.setTexture(tex);
+            
 
             // Register a timer task
             // Timer timer = new Timer();
@@ -212,7 +229,7 @@ public class bezier {
     }
 
     private static Shape makeBezier(int segments, Vector3f[] controlPoints,
-            int resolution, int angleRes, Vector3f translation) {
+            int resolution, int angleRes, Vector3f translation, float scale) {
         // assertion
         if (controlPoints.length != (segments - 1) * 3 + 4) {
             System.out.println("not enough control points");
@@ -225,7 +242,10 @@ public class bezier {
 
         // normals
         float[] normals = new float[element.length];
-
+        
+        // texture coordinates
+        float[] texture = new float[element.length];
+        
         float t = 0;
         int a = -1;
         element[++a] = controlPoints[0].x;
@@ -255,10 +275,15 @@ public class bezier {
 
                 element[++a] = x.getX();
                 normals[a] = normal.getZ();
+                texture[a] = 0;
                 element[++a] = x.getY();
                 normals[a] = 0;
+                texture[a] = 0;
                 element[++a] = x.getZ();
                 normals[a] = -normal.getX();
+                texture[a] = 1/t;
+                
+                
 
             }
             t = 0;
@@ -271,19 +296,31 @@ public class bezier {
         for (int i = 1; i < angleRes; i++) {
             for (int j = 0; j < (resolution - 1) * segments + 1; j++) {
                 float x = element[res];
-                float normalX = normals[res];
                 float y = element[res + 1];
-                float normalY = normals[res + 1];
                 float z = element[j * 3 + 2];
+                
+                float radius = (float) Math.sqrt(x * x + y * y);
+                
+                float normalX = normals[res];
+                float normalY = normals[res + 1];
                 float normalZ = normals[3 * j + 2];
 
-                float radius = (float) Math.sqrt(x * x + y * y);
+                
+                //x
                 element[++a] = (float) Math.cos(i * myAngle) * radius;
                 normals[a] = (float) Math.cos(i * myAngle) * normalX;
+                texture[a] = Math.abs((float) Math.cos(i*myAngle));
+                
+                //y
                 element[++a] = (float) Math.sin(i * myAngle) * radius;
                 normals[a] = (float) Math.sin(i * myAngle) * normalY;
+                texture[a] = 0;
+                
+                //z
                 element[++a] = z;
                 normals[a] = normalZ;
+                texture[a] = texture[3*j+2];
+                
                 res += 3;
                 res %= 3 * ((resolution - 1) * segments + 1);
             }
@@ -336,6 +373,11 @@ public class bezier {
             c[++a] = 0f;
         }
         
+        //scale shape
+        for (int i=0;i<element.length;i++){
+            element[i]*=scale;
+        }
+        
         // move shape
         a = -1;
         for (int i=0; i<element.length/3;i++) {
@@ -343,13 +385,25 @@ public class bezier {
             element[++a]+=translation.getY();
             element[++a]+=translation.getZ();
         }
+        
+        //kill texture whitespaces
+        float[] realTexture = new float[element.length/3*2];
+        a=-1;
+        for (int i=0; i<texture.length;i++) {
+            realTexture[++a]=texture[i];
+            i+=2;
+            realTexture[++a]=texture[i];
+                                   
+        }
+        
 
         // Construct a data structure that stores the vertices, their
         // attributes, and the triangle mesh connectivity
         VertexData vertexData = new VertexData(element.length / 3);
         vertexData.addElement(element, VertexData.Semantic.POSITION, 3);
-         vertexData.addElement(c, VertexData.Semantic.COLOR, 3);
+//         vertexData.addElement(c, VertexData.Semantic.COLOR, 3);
         vertexData.addElement(normals, VertexData.Semantic.NORMAL, 3);
+        vertexData.addElement(realTexture, VertexData.Semantic.TEXCOORD, 2);
 
         vertexData.addIndices(indices);
 
@@ -357,6 +411,8 @@ public class bezier {
         return new Shape(vertexData);
 
     }
+    
+    private static Material material, material2, material3;
 
     /**
      * The main function opens a 3D rendering window, constructs a simple 3D
@@ -370,41 +426,82 @@ public class bezier {
         Light light = new Light();
         light.type = Light.Type.POINT;
         light.position = new Vector3f(0, 20, 60);
-        light.specular = new Vector3f(1, 0, 0);
+        light.specular = new Vector3f(0.5f, 0.5f, 0);
         light.diffuse = new Vector3f(0.7f, 0.7f, 0.7f);
         light.ambient = new Vector3f(0, 0, 0);
 
         Light light2 = new Light();
         light.type = Light.Type.POINT;
         light.position = new Vector3f(0, -40, 10);
-        light.specular = new Vector3f(0, 0, 1);
+        light.specular = new Vector3f(1, 1, 1);
         light.diffuse = new Vector3f(0.5f, 0.5f, 0.5f);
-        light.ambient = new Vector3f(0.3f, 0.3f, 0.3f);
+        light.ambient = new Vector3f(0.2f, 0.2f, 0.2f);
 
+        
+        //Table
         Vector3f[] points = new Vector3f[7];
-        points[0] = new Vector3f(0, 0, 0);
-        points[1] = new Vector3f(3, 0, 1);
-        points[2] = new Vector3f(3, 0, 3);
-        points[3] = new Vector3f(4, 0, 7);
+        points[0] = new Vector3f(3, 0, 0);
+        points[1] = new Vector3f(1, 0, 1);
+        points[2] = new Vector3f(1, 0, 3);
+        points[3] = new Vector3f(2, 0, 7);
         points[4] = new Vector3f(7, 0, 8);
         points[5] = new Vector3f(7, 0, 10);
-        points[6] = new Vector3f(0, 0, 11);
+        points[6] = new Vector3f(0, 0, 10);
 
-        Material material = new Material();
-        material.ambient = new Vector3f(0.3f, 0.3f, 0.3f);
-        material.diffuse = new Vector3f(0.5f, 0.5f, 0.5f);
+        Vector3f translation = new Vector3f(0,0,0);
+        float scale = 1;
+
+        material = new Material();
+        material.ambient = new Vector3f(0.5f, 0.5f, 0.5f);
+        material.diffuse = new Vector3f(0,0,1);
         material.specular = new Vector3f(1,1,1);
         material.shininess = 8;
         
-        Vector3f translation = new Vector3f(10,10,0);
-
-        Shape shape = makeBezier(2, points, 100, 100, translation);
+        Shape shape = makeBezier(2, points, 100, 100, translation,scale);
         shape.setMaterial(material);
-
-        Shape shape2 = xPlane();
-        shape2.setMaterial(material);
-        // sceneManager.addShape(shape2);
+        
+        //Shape2
+        Vector3f[] points2 = new Vector3f[7];
+        points2[0] = new Vector3f(1, 0, 0);
+        points2[1] = new Vector3f(1, 0, 0);
+        points2[2] = new Vector3f(2, 0, 3);
+        points2[3] = new Vector3f(1, 0, 3);
+        points2[4] = new Vector3f(0, 0, 4);
+        points2[5] = new Vector3f(2, 0, 5);
+        points2[6] = new Vector3f(0, 0, 6);
+        Vector3f translation2 = new Vector3f(3,0,10);
+        float scale2 = 0.5f;
+        
+        material2 = new Material();
+        material2.ambient = new Vector3f(0.5f,0.5f,0.5f);
+        material2.diffuse = new Vector3f(1,0,0);
+        material2.specular = new Vector3f(1,1,1);
+        material2.shininess = 5;
+        
+        Shape shape2 = makeBezier(2, points2, 100,100, translation2, scale2);
+        shape2.setMaterial(material2);
+        
+        //Shape 3
+        Vector3f[] points3 = new Vector3f[4];
+        points3[0] = new Vector3f(2, 0, 0);
+        points3[1] = new Vector3f(0, 0, 2);
+        points3[2] = new Vector3f(0, 0, 4);
+        points3[3] = new Vector3f(3, 0, 6);
+        Vector3f translation3 = new Vector3f(-3,-1,10);
+        float scale3 = 0.6f;
+        
+        material3 = new Material();
+        material3.ambient = new Vector3f(0.3f,0.3f,0.3f);
+        material3.diffuse = new Vector3f(0.8f,0.8f,0);
+        material3.specular = new Vector3f(0.5f,0.5f,0.5f);
+        material3.shininess = 8;
+        
+        Shape shape3 = makeBezier(1, points3, 100,100, translation3, scale3);
+        shape3.setMaterial(material3);
+        
         sceneManager.addShape(shape);
+        sceneManager.addShape(shape2);
+        sceneManager.addShape(shape3);
         sceneManager.addLight(light);
         sceneManager.addLight(light2);
 
